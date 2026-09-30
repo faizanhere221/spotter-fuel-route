@@ -17,6 +17,11 @@ METERS_PER_MILE = 1609.344
 
 _session = requests.Session()  # shared for connection pooling; headers are set per request
 
+# Service paths under ORS_BASE_URL (https://api.heigit.org). HeiGIT serves directions and the
+# Pelias geocoder under different prefixes.
+DIRECTIONS_PATH = "/openrouteservice/v2/directions/{profile}/geojson"
+GEOCODE_PATH = "/pelias/v1/search"
+
 
 class ORSError(Exception):
     """Base class; `http_status` is what our API should return."""
@@ -46,6 +51,7 @@ class Route:
     distance_miles: float
     duration_seconds: float
     profile: str
+    warnings: tuple = ()  # ORS warning messages, e.g. "There may be restrictions on some roads"
 
 
 def _error_message(resp):
@@ -104,23 +110,24 @@ class ORSClient:
             "instructions": False,
             "geometry_simplify": True,
         }
-        data = self._request("POST", f"/v2/directions/{profile}/geojson", json=body)
+        data = self._request("POST", DIRECTIONS_PATH.format(profile=profile), json=body)
         try:
             feature = data["features"][0]
             coords = feature["geometry"]["coordinates"]
             summary = feature["properties"].get("summary", {})
             distance_m = float(summary.get("distance", 0.0))
             duration_s = float(summary.get("duration", 0.0))
+            warnings = tuple(str(w.get("message", w)) for w in feature["properties"].get("warnings", []))
         except (KeyError, IndexError, TypeError, ValueError):
             raise ORSUpstreamError("Unexpected ORS directions response shape.") from None
         if len(coords) < 2:
             raise ORSUpstreamError("ORS returned a route with fewer than 2 points.")
-        return Route(coords, distance_m / METERS_PER_MILE, duration_s, profile)
+        return Route(coords, distance_m / METERS_PER_MILE, duration_s, profile, warnings)
 
     def geocode(self, text):
         """Best US locality match for free text -> (lat, lng, label), or None. One HTTP call."""
         params = {"text": text, "boundary.country": "US", "layers": "locality,localadmin", "size": 1}
-        data = self._request("GET", "/geocode/search", params=params)
+        data = self._request("GET", GEOCODE_PATH, params=params)
         features = (data.get("features") or []) if isinstance(data, dict) else []
         if not features:
             return None

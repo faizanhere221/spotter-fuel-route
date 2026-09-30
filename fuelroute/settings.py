@@ -21,20 +21,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 
+def env(name, default=''):
+    """Env var, with empty values (e.g. `KEY=` copied from .env.example) treated as unset."""
+    value = os.environ.get(name, '').strip()
+    return value if value else default
+
+
 def env_bool(name, default):
-    return os.environ.get(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
+    return env(name, str(default)).lower() in {'1', 'true', 'yes', 'on'}
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-only-change-me')
+SECRET_KEY = env('DJANGO_SECRET_KEY', 'django-insecure-dev-only-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h]
+ALLOWED_HOSTS = [h.strip() for h in env('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 
 # Application definition
@@ -152,6 +158,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
     'UNAUTHENTICATED_USER': None,
+    'EXCEPTION_HANDLER': 'routing.errors.api_exception_handler',
 }
 
 LOGGING = {
@@ -163,11 +170,12 @@ LOGGING = {
 }
 
 # OpenRouteService
-ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
-ORS_BASE_URL = os.environ.get('ORS_BASE_URL') or 'https://api.openrouteservice.org'
-ORS_PROFILE = os.environ.get('ORS_PROFILE', 'driving-hgv')
-ORS_CONNECT_TIMEOUT_SECONDS = float(os.environ.get('ORS_CONNECT_TIMEOUT_SECONDS', 5))
-ORS_READ_TIMEOUT_SECONDS = float(os.environ.get('ORS_READ_TIMEOUT_SECONDS', 30))
+ORS_API_KEY = env('ORS_API_KEY')
+# HeiGIT host; api.openrouteservice.org was deprecated on 2026-04-28 (see README).
+ORS_BASE_URL = env('ORS_BASE_URL', 'https://api.heigit.org')
+ORS_PROFILE = env('ORS_PROFILE', 'driving-hgv')
+ORS_CONNECT_TIMEOUT_SECONDS = float(env('ORS_CONNECT_TIMEOUT_SECONDS', 5))
+ORS_READ_TIMEOUT_SECONDS = float(env('ORS_READ_TIMEOUT_SECONDS', 30))
 ORS_GEOCODE_FALLBACK = env_bool('ORS_GEOCODE_FALLBACK', True)
 
 # Route optimizer defaults (overridable per request where noted in PLAN.md)

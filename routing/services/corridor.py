@@ -39,12 +39,13 @@ _index = None
 index_builds = 0  # observable in tests
 
 
-def get_station_index():
-    """Module-level StationIndex, rebuilt only when stations_version changes (1 aggregate query)."""
+def get_station_index(version=None):
+    """Module-level StationIndex, rebuilt only when stations_version changes (1 aggregate query,
+    skipped when the caller already has the version)."""
     global _index, index_builds
     from routing.models import Station, stations_version  # lazy: keep the rest Django-free
 
-    version = stations_version()
+    version = version or stations_version()
     if _index is None or _index.version != version:
         rows = list(Station.objects.filter(lat__isnull=False, lng__isnull=False)
                     .order_by("external_id").values_list("external_id", "lat", "lng", "price"))

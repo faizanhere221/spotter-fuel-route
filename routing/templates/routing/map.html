@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fuel route: {{ start.label }} → {{ finish.label }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+        integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <style>
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .summary {
+      position: absolute; z-index: 1000; top: 10px; right: 10px; max-width: 280px;
+      background: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,.3);
+      font-size: 14px; line-height: 1.45;
+    }
+    .summary h1 { font-size: 15px; margin: 0 0 6px; }
+    .summary .total { font-size: 20px; font-weight: 600; }
+    .stop-icon {
+      background: #d9480f; color: #fff; border: 2px solid #fff; border-radius: 50%;
+      width: 24px; height: 24px; line-height: 24px; text-align: center; font: 600 12px system-ui, sans-serif;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+    .end-icon { background: #1c7ed6; }
+    .popup dt { font-weight: 600; float: left; clear: left; margin-right: 6px; }
+    .popup dd { margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="summary">
+    <h1>{{ start.label }} → {{ finish.label }}</h1>
+    <div class="total">${{ summary.total_fuel_cost }}</div>
+    <div>{{ summary.stop_count }} fuel stop{{ summary.stop_count|pluralize }} · {{ summary.distance_miles }} mi · {{ summary.duration_hours }} h</div>
+    <div>{{ summary.total_gallons_purchased }} gal purchased</div>
+  </div>
+
+  {{ map_data|json_script:"map-data" }}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+          integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    // All data comes from the json_script block above; text is inserted with textContent only.
+    const data = JSON.parse(document.getElementById("map-data").textContent);
+    const map = L.map("map");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | ' +
+                   'Route &copy; <a href="https://openrouteservice.org/">openrouteservice.org</a> by HeiGIT',
+    }).addTo(map);
+
+    const line = L.polyline(data.route.map(([lng, lat]) => [lat, lng]), { color: "#1c7ed6", weight: 4 }).addTo(map);
+
+    function el(tag, text, className) {
+      const node = document.createElement(tag);
+      if (text !== undefined) node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    }
+    function icon(label, extraClass) {
+      return L.divIcon({ html: el("div", label, "stop-icon " + (extraClass || "")), className: "",
+                         iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12] });
+    }
+    function popup(title, rows) {
+      const box = el("div", undefined, "popup");
+      box.appendChild(el("strong", title));
+      const dl = el("dl");
+      for (const [k, v] of rows) { dl.appendChild(el("dt", k)); dl.appendChild(el("dd", v)); }
+      box.appendChild(dl);
+      return box;
+    }
+
+    L.marker([data.start.lat, data.start.lng], { icon: icon("A", "end-icon") })
+      .bindPopup(popup("Start", [["Place", data.start.label]])).addTo(map);
+    L.marker([data.finish.lat, data.finish.lng], { icon: icon("B", "end-icon") })
+      .bindPopup(popup("Finish", [["Place", data.finish.label]])).addTo(map);
+
+    for (const s of data.stops) {
+      L.marker([s.lat, s.lng], { icon: icon(String(s.stop)) })
+        .bindPopup(popup(s.stop + ". " + s.name, [
+          ["City", s.city + ", " + s.state],
+          ["Exit", s.address],
+          ["Mile", s.mile_marker],
+          ["Price", "$" + s.price_per_gallon + "/gal"],
+          ["Gallons", s.gallons],
+          ["Cost", "$" + s.cost],
+        ])).addTo(map);
+    }
+    map.fitBounds(line.getBounds(), { padding: [30, 30] });
+  </script>
+</body>
+</html>

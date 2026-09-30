@@ -12,7 +12,8 @@ ROUTE_BODY = {
     "features": [{
         "type": "Feature",
         "geometry": {"type": "LineString", "coordinates": [[-74.0, 40.7], [-75.0, 40.0], [-118.2, 34.0]]},
-        "properties": {"summary": {"distance": 4500000.0, "duration": 150000.0}},
+        "properties": {"summary": {"distance": 4500000.0, "duration": 150000.0},
+                       "warnings": [{"code": 1, "message": "There may be restrictions on some roads"}]},
     }],
 }
 
@@ -48,10 +49,11 @@ class ORSClientTests(SimpleTestCase):
         self.assertAlmostEqual(route.distance_miles, 4500000.0 / METERS_PER_MILE)
         self.assertEqual(route.duration_seconds, 150000.0)
         self.assertEqual(route.profile, "driving-hgv")
+        self.assertEqual(route.warnings, ("There may be restrictions on some roads",))
         self.assertEqual(client.calls, 1)
 
         args, kwargs = session.request.call_args
-        self.assertEqual(args, ("POST", "https://ors.test/v2/directions/driving-hgv/geojson"))
+        self.assertEqual(args, ("POST", "https://ors.test/openrouteservice/v2/directions/driving-hgv/geojson"))
         self.assertEqual(kwargs["json"], {
             "coordinates": [[-74.0060, 40.7128], [-118.2437, 34.0522]],
             "instructions": False,
@@ -63,7 +65,7 @@ class ORSClientTests(SimpleTestCase):
     def test_profile_override(self):
         client, session = self.client_with(fake_response(200, ROUTE_BODY))
         client.get_route((40.0, -74.0), (34.0, -118.0), profile="driving-car")
-        self.assertTrue(session.request.call_args[0][1].endswith("/v2/directions/driving-car/geojson"))
+        self.assertTrue(session.request.call_args[0][1].endswith("/openrouteservice/v2/directions/driving-car/geojson"))
 
     def test_429_is_quota_error_503(self):
         client, _ = self.client_with(fake_response(429, {"error": "Rate limit exceeded"}))
@@ -129,7 +131,7 @@ class ORSClientTests(SimpleTestCase):
         client, session = self.client_with(fake_response(200, body))
         self.assertEqual(client.geocode("Big Cabin, OK"), (36.54, -95.22, "Big Cabin, OK, USA"))
         args, kwargs = session.request.call_args
-        self.assertEqual(args, ("GET", "https://ors.test/geocode/search"))
+        self.assertEqual(args, ("GET", "https://ors.test/pelias/v1/search"))
         self.assertEqual(kwargs["params"]["boundary.country"], "US")
         self.assertEqual(kwargs["params"]["size"], 1)
         self.assertEqual(kwargs["params"]["text"], "Big Cabin, OK")
