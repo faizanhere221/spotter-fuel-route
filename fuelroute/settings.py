@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -34,11 +35,15 @@ def env_bool(name, default):
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('DJANGO_SECRET_KEY', 'django-insecure-dev-only-change-me')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', True)
+
+# The dev fallback key is only allowed with DEBUG on; a non-debug run must set its own key.
+SECRET_KEY = env('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false.')
+    SECRET_KEY = 'django-insecure-dev-only-change-me'
 
 ALLOWED_HOSTS = [h.strip() for h in env('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
@@ -136,14 +141,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
 
 
 # Cache: LocMem (per-process). See README for the Redis production note.
@@ -178,7 +175,7 @@ ORS_CONNECT_TIMEOUT_SECONDS = float(env('ORS_CONNECT_TIMEOUT_SECONDS', 5))
 ORS_READ_TIMEOUT_SECONDS = float(env('ORS_READ_TIMEOUT_SECONDS', 30))
 ORS_GEOCODE_FALLBACK = env_bool('ORS_GEOCODE_FALLBACK', True)
 
-# Route optimizer defaults (overridable per request where noted in PLAN.md)
+# Route optimizer defaults (start fuel is overridable per request)
 TANK_GALLONS = 50
 MPG = 10
 START_FUEL_GALLONS = 50

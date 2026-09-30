@@ -27,7 +27,11 @@ def read_rows(path):
 
 
 def dedupe(rows):
-    """One row per OPIS ID: the lowest price wins (first seen on ties). Returns (rows, conflicts)."""
+    """One row per OPIS ID: the lowest price wins (first seen on ties).
+
+    Returns (rows, conflicts, examples): conflicts counts IDs whose duplicates differ per field;
+    examples holds one (id, distinct values) sample per field.
+    """
     best, seen = {}, {}
     for row in rows:
         oid = int(row["OPIS Truckstop ID"])

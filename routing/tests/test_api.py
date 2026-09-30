@@ -51,7 +51,9 @@ class FakeORS:
 
 @override_settings(ORS_API_KEY="test-key", ORS_BASE_URL="https://ors.test", ORS_GEOCODE_FALLBACK=True,
                    ORS_PROFILE="driving-hgv", CORRIDOR_MILES=5.0, START_FUEL_GALLONS=50)
-class RouteAPITests(TestCase):
+class APITestBase(TestCase):
+    """Shared fixtures/helpers (no tests here, so importing it elsewhere doesn't duplicate tests)."""
+
     @classmethod
     def setUpTestData(cls):
         for name, state, lat, lng, pop in [("New York City", "NY", 40.71427, -74.00597, 8804190),
@@ -66,7 +68,7 @@ class RouteAPITests(TestCase):
             v = int(abs(cum - target).argmin())
             Station.objects.create(
                 external_id=1000 + k, name=f"STOP {k}", address=f"I-80, EXIT {k}", city=f"Town{k}",
-                state="NE", rack_id=1, price=Decimal("3.0") + Decimal(k % 5) / 10,
+                state="NE", rack_id=1, price=Decimal("3.00733333") + Decimal(k % 5) / 10,
                 lat=COORDS[v][1], lng=COORDS[v][0], imported_at=now)
 
     def setUp(self):
@@ -81,6 +83,25 @@ class RouteAPITests(TestCase):
         body = {"start": "New York, NY", "finish": "Los Angeles, CA", **body}
         return self.client.post(reverse("route"), body, content_type="application/json")
 
+    def assertError(self, resp, status, code):
+        self.assertEqual(resp.status_code, status, resp.content)
+        err = resp.json()["error"]
+        self.assertEqual(err["code"], code)
+        self.assertTrue(err["message"])
+        return err
+
+    def assertHTMLError(self, resp, status, code, text):
+        self.assertEqual(resp.status_code, status)
+        self.assertTrue(resp["Content-Type"].startswith("text/html"))
+        html = resp.content.decode()
+        self.assertIn(f"({status})", html)
+        self.assertIn(code, html)
+        self.assertIn(text, html)
+        self.assertIn("Go back", html)
+        self.assertNotIn("<script", html)
+
+
+class RouteAPITests(APITestBase):
     # --- happy path + caching -------------------------------------------------------------
 
     def test_first_call_hits_ors_once_repeat_is_cached(self):
@@ -125,7 +146,8 @@ class RouteAPITests(TestCase):
         url = urlparse(body["map_url"])
         self.assertEqual(url.path, reverse("route-map"))
         self.assertEqual(parse_qs(url.query), {"start": ["New York, NY"], "finish": ["Los Angeles, CA"],
-                                               "start_fuel_gallons": ["25"]})
+                                               "start_fuel_gallons": ["25.000"]})
+        self.assertEqual(body["assumptions"]["start_fuel_gallons"], "25.000")
 
     def test_map_after_post_uses_cache(self):
         body = self.post().json()
@@ -182,13 +204,6 @@ class RouteAPITests(TestCase):
         self.assertEqual(set(body["timings_ms"]), {"resolve", "plan_cache", "total"})
 
     # --- errors ------------------------------------------------------------------------------
-
-    def assertError(self, resp, status, code):
-        self.assertEqual(resp.status_code, status, resp.content)
-        err = resp.json()["error"]
-        self.assertEqual(err["code"], code)
-        self.assertTrue(err["message"])
-        return err
 
     def test_400_bad_body(self):
         err = self.assertError(self.client.post(reverse("route"), {"start": "New York, NY"},
@@ -264,7 +279,19 @@ class RouteAPITests(TestCase):
     def test_405_uses_error_shape(self):
         self.assertError(self.client.get(reverse("route")), 405, "method_not_allowed")
 
-    def test_map_errors_use_error_shape(self):
-        self.assertError(self.client.get(reverse("route-map"), {"start": "New York, NY"}), 400, "invalid_request")
-        self.assertError(self.client.get(reverse("route-map"), {"start": "New York, NY", "finish": "Los Angeles, CA",
-                                                                "start_fuel_gallons": "0"}), 422, "unreachable")
+    def test_map_errors_render_html_page(self):
+        url = reverse("route-map")
+        self.assertHTMLError(self.client.get(url, {"start": "New York, NY"}), 400, "invalid_request",
+                             "This field is required.")
+        self.assertHTMLError(self.client.get(url, {"start": "New York, NY", "finish": "Los Angeles, CA",
+                                                   "start_fuel_gallons": "0"}),
+                             422, "unreachable", "No fuel stop reachable")
+        self.fake.geocode = response(200, {"type": "FeatureCollection", "features": []})
+        self.assertHTMLError(self.client.get(url, {"start": "Faketown, TX", "finish": "Los Angeles, CA"}),
+                             400, "invalid_location", "Place not found")
+
+    def test_map_error_message_is_escaped(self):
+        resp = self.client.get(reverse("route-map"), {"start": "<b>x</b>, ZZ", "finish": "Los Angeles, CA"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn("<b>x</b>", resp.content.decode())
+        self.assertIn("&lt;b&gt;x&lt;/b&gt;", resp.content.decode())

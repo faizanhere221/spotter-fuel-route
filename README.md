@@ -1,7 +1,7 @@
 # Fuel Route Optimizer
 
 Django + DRF API that plans the cheapest fuel stops for a US truck route (50 gal tank, 10 mpg),
-using OpenRouteService for the route and the provided OPIS fuel price file. Design: [PLAN.md](PLAN.md).
+using OpenRouteService for the route and the provided OPIS fuel price file. Design: [docs/DESIGN.md](docs/DESIGN.md).
 
 ## API
 
@@ -53,7 +53,11 @@ venv/Scripts/python.exe manage.py test
   Default `ORS_BASE_URL=https://api.heigit.org`; directions are under `/openrouteservice/v2/...`,
   geocoding under `/pelias/v1/...`.
 - Caches are LocMem (per process); use a shared cache (e.g. Redis) with several workers.
-
+- Prices update only via `load_stations` (it bumps the stations version that keys the caches);
+  editing Station rows directly leaves cached plans stale.
+- Routes through Canada usually return 422 `unreachable`: Canadian stations are excluded.
+- Gallons reconcile to within 0.0005 gal per stop because each purchase is rounded to 3 dp.
+- Decimal values (money, gallons, prices) are JSON strings to preserve precision.
 - Coordinate input (`"lat,lng"`) is checked against coarse US bounding boxes (lower 48, Alaska,
   Hawaii) only, so points just across the northern border (e.g. Ottawa, 45.42,-75.70) pass the
   check. `"City, ST"` input is US-only: it must name a US state and match a US place.

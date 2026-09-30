@@ -126,6 +126,10 @@ def parse_city_state(text):
     code = state.upper() if state.upper() in US_STATES else _STATE_BY_NAME.get(normalize(state))
     if code is None:
         raise LocationError(f"Unknown US state {state!r} in {text!r}.")
+    if not normalize(city):
+        # e.g. non-Latin or punctuation-only names: nothing to match, and all such names would
+        # share one geo cache key.
+        raise LocationError(f"City name {city!r} has no letters or digits usable for a US place lookup.")
     return city, code
 
 

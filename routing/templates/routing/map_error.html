@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route map error ({{ status }})</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 16px; color: #212529; }
+    h1 { font-size: 20px; }
+    .code { font-family: ui-monospace, monospace; color: #868e96; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Couldn't build this route map ({{ status }})</h1>
+  <p>{{ error.message }}</p>
+  <p class="code">{{ error.code }}</p>
+  {% if error.fields %}
+    <ul>
+      {% for field, messages in error.fields.items %}
+        <li><strong>{{ field }}</strong>: {{ messages|join:" " }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <p>Go back and check the start and finish (<em>City, ST</em> or <em>lat,lng</em>) and the starting fuel (0–50 gallons).</p>
+</body>
+</html>

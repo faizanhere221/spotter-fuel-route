@@ -3,11 +3,13 @@ from urllib.parse import urlencode
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .errors import domain_error, error_body
+from .errors import error_body, error_for
 from .models import Place, Station, stations_version
 from .serializers import RouteRequestSerializer
 from .services.planner import plan_route
@@ -26,45 +28,37 @@ def health(request):
 
 def map_url_for(request, data):
     query = urlencode({"start": data["start"], "finish": data["finish"],
-                       "start_fuel_gallons": f"{data['start_fuel_gallons']:g}"})
+                       "start_fuel_gallons": str(data["start_fuel_gallons"])})
     return request.build_absolute_uri(f"{reverse('route-map')}?{query}")
 
 
 def run_planner(data):
-    """(PlanResult, None) or (None, (status, error body))."""
-    try:
-        return plan_route(data["start"], data["finish"], data["start_fuel_gallons"]), None
-    except Exception as exc:
-        mapped = domain_error(exc)
-        if mapped is None:
-            raise
-        return None, mapped
-
-
-def invalid_request(serializer):
-    return 400, error_body("invalid_request", "Invalid request.", fields=serializer.errors)
+    """Plan from validated serializer data; raises the planner's typed exceptions."""
+    return plan_route(data["start"], data["finish"], data["start_fuel_gallons"])
 
 
 class RouteView(APIView):
+    """POST /api/route/. Errors propagate to routing.errors.api_exception_handler."""
+
     def post(self, request):
         serializer = RouteRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            status, body = invalid_request(serializer)
-            return Response(body, status=status)
-        result, error = run_planner(serializer.validated_data)
-        if error:
-            return Response(error[1], status=error[0])
+        serializer.is_valid(raise_exception=True)
+        result = run_planner(serializer.validated_data)
         return Response(result.as_response(map_url_for(request, serializer.validated_data)))
 
 
+@csrf_exempt  # GET-only page; exempt so a POST gets 405 from require_GET, not the CSRF 403 page
+@require_GET
 def route_map(request):
-    serializer = RouteRequestSerializer(data=request.GET)
-    if not serializer.is_valid():
-        status, body = invalid_request(serializer)
-        return JsonResponse(body, status=status)
-    result, error = run_planner(serializer.validated_data)
-    if error:
-        return JsonResponse(error[1], status=error[0])
+    """GET /api/route/map/: the same plan on a Leaflet map. Errors render an HTML error page."""
+    try:
+        serializer = RouteRequestSerializer(data=request.GET)
+        serializer.is_valid(raise_exception=True)
+        result = run_planner(serializer.validated_data)
+    except Exception as exc:  # noqa: BLE001 — error_for() maps known types, logs the rest as 500
+        status, body = error_for(exc)
+        return render(request, "routing/map_error.html", {"status": status, "error": body["error"]},
+                      status=status)
     plan = result.plan
     map_data = {
         "route": plan["route"]["geometry"]["coordinates"],
@@ -78,3 +72,8 @@ def route_map(request):
     response["X-External-API-Calls"] = str(result.external_api_calls)
     response["X-Cached"] = str(result.cached).lower()
     return response
+
+
+def api_not_found(request, path=""):
+    """Catch-all for unknown /api/... paths, in the API error shape (works with DEBUG on or off)."""
+    return JsonResponse(error_body("not_found", f"No API endpoint at {request.path}."), status=404)

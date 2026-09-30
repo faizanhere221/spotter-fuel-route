@@ -18,21 +18,35 @@ class Candidate:
     mile_marker: float   # distance along the route to the nearest route point
     offset_miles: float  # distance from the station to that route point
     price: object        # Decimal, full precision
+    row: int             # position in the StationIndex, for StationIndex.details()
+
+
+DETAIL_FIELDS = ("name", "address", "city", "state")
 
 
 class StationIndex:
-    """Geocoded stations as parallel arrays; `xyz` is precomputed once per stations_version."""
+    """Geocoded stations as parallel arrays; `xyz` is precomputed once per stations_version.
 
-    def __init__(self, version, ids, lat, lng, prices):
+    `details` holds (name, address, city, state) per station so a request never needs a second
+    DB lookup (which could also race with a re-import).
+    """
+
+    def __init__(self, version, ids, lat, lng, prices, details=None):
         self.version = version
         self.ids = np.asarray(ids, dtype=np.int64)
         self.lat = np.asarray(lat, dtype=np.float64)
         self.lng = np.asarray(lng, dtype=np.float64)
         self.prices = np.asarray(prices, dtype=object)
+        self._details = list(details) if details is not None else [("", "", "", "")] * len(self.ids)
         self.xyz = to_xyz(self.lat, self.lng)
 
     def __len__(self):
         return len(self.ids)
+
+    def details(self, row):
+        """Station fields for API output: station_id, name, address, city, state, lat, lng, price."""
+        return {"station_id": int(self.ids[row]), **dict(zip(DETAIL_FIELDS, self._details[row])),
+                "lat": float(self.lat[row]), "lng": float(self.lng[row]), "price": self.prices[row]}
 
 
 _index = None
@@ -47,10 +61,10 @@ def get_station_index(version=None):
 
     version = version or stations_version()
     if _index is None or _index.version != version:
-        rows = list(Station.objects.filter(lat__isnull=False, lng__isnull=False)
-                    .order_by("external_id").values_list("external_id", "lat", "lng", "price"))
-        ids, lat, lng, prices = zip(*rows) if rows else ((), (), (), ())
-        _index = StationIndex(version, ids, lat, lng, prices)
+        rows = list(Station.objects.filter(lat__isnull=False, lng__isnull=False).order_by("external_id")
+                    .values_list("external_id", "lat", "lng", "price", *DETAIL_FIELDS))
+        ids, lat, lng, prices = ([r[i] for r in rows] for i in range(4))
+        _index = StationIndex(version, ids, lat, lng, prices, details=[r[4:] for r in rows])
         index_builds += 1
     return _index
 
@@ -125,7 +139,7 @@ def stations_along_route(coords, index, corridor_miles, step_miles=RESAMPLE_MILE
     keep = offsets <= corridor_miles
     rows, markers, offsets = rows[hit][keep], cum[idx[hit][keep]], offsets[keep]
 
-    out = [Candidate(int(index.ids[r]), float(m), float(o), index.prices[r])
+    out = [Candidate(int(index.ids[r]), float(m), float(o), index.prices[r], int(r))
            for r, m, o in zip(rows, markers, offsets)]
     out.sort(key=lambda c: (c.mile_marker, c.price, c.station_id))
     return out
