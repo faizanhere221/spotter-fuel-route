@@ -113,7 +113,7 @@ data/
 - `"City, ST"` resolves through the same normalisation and match passes against `Place` → **0 external calls**.
 - **ORS geocode fallback is ON by default** (`ORS_GEOCODE_FALLBACK=true`): `GET https://api.openrouteservice.org/geocode/search?text=…&boundary.country=US&size=1`.
   - That's **+1 external call per endpoint that misses**, counted in `external_api_calls`.
-  - Fallback results are **not cached** (no geo layer), so a repeated request for the same unknown place calls the fallback again, and counts it again.
+  - Fallback results are cached under `geo:v1:{sha1(normalized query)}` for 30 days (§10), so a repeat request with fallback-geocoded input makes **0 external calls**.
 - A result outside the US, or not found at all, returns `400`.
 
 ## 7. Request flow (`POST /api/route/`)
@@ -183,12 +183,13 @@ Five miles covers the error from placing stations at the town centroid, which is
 
 | Key | Value | TTL |
 |---|---|---|
+| `geo:v1:{sha1(normalized query)}` | ORS geocode fallback result (lat, lng, label) | 30 days |
 | `route:v1:{route_hash}` | resampled-ready route: coords, total miles | 7 days |
 | `plan:v1:{route_hash}:{stations_version}:{tank}:{mpg}:{start_fuel}:{corridor}` | full response body (minus `cached`/`external_api_calls`) | 1 day |
 
 - `route_hash = sha1(f"{profile}|{lon1:.4f},{lat1:.4f}|{lon2:.4f},{lat2:.4f}")`, computed before any ORS call.
 - A station re-import changes `stations_version`. That invalidates the plan cache but keeps the route cache, so there are still 0 directions calls.
-- The geocode-fallback cache layer is gone (§6).
+- The geo key uses the same `normalize()` as the Place lookup, so `"St. Louis, MO"` and `"saint louis, mo"` share one entry.
 - **README production note:** LocMem is per-process. With several workers, use Redis (`django.core.cache.backends.redis.RedisCache`) so the caches are shared.
 
 ## 11. Endpoints & response shape
@@ -245,7 +246,14 @@ Errors:
 {"ok": true, "stations": 6626, "stations_geocoded": 6606, "places": 183980, "stations_version": "6626:2026-…"}
 ```
 
-## 12. Tests (`python manage.py test`; ORS always mocked; the `requests` session is patched to fail on any real call)
+## 12. README-bound assumptions
+- Duplicate OPIS IDs with different prices → lowest listed price kept.
+- Canadian stations are skipped; routing is US-only.
+- Stations are located at their town centroid (`station_location_precision: "city centroid"`); stations whose town isn't in GeoNames are excluded.
+- The starting tank is full (50 gal) and not charged unless `start_fuel_gallons` says otherwise.
+- The optimizer ignores detour distance to reach a station inside the corridor.
+
+## 13. Tests (`python manage.py test`; ORS always mocked; the `requests` session is patched to fail on any real call)
 
 **Optimizer**
 - Start fuel covers the whole trip → no stops, cost 0

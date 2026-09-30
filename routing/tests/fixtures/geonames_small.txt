@@ -1,0 +1,5 @@
+1	Big Cabin	Big Cabin		36.53787	-95.22136	P	PPL	US		OK	035			262	200	201	America/Chicago	2011-05-14
+2	Old Town Site	Old Town Site		36.0	-95.0	P	PPLH	US		OK	035			0	200	201	America/Chicago	2011-05-14
+3	Big Cabin Creek	Big Cabin Creek		36.5	-95.2	H	STM	US		OK	035			0	200	201	America/Chicago	2011-05-14
+4	Tomah	Tomah		43.97858	-90.50402	P	PPL	US		WI	081			9000	290	290	America/Chicago	2011-05-14
+5	Nowhere	Nowhere		10.0	10.0	P	PPL	US		00				5	0	0	UTC	2011-05-14

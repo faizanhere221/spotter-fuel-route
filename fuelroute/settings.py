@@ -164,7 +164,8 @@ LOGGING = {
 ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
 ORS_BASE_URL = os.environ.get('ORS_BASE_URL', 'https://api.openrouteservice.org')
 ORS_PROFILE = os.environ.get('ORS_PROFILE', 'driving-hgv')
-ORS_TIMEOUT_SECONDS = float(os.environ.get('ORS_TIMEOUT_SECONDS', 20))
+ORS_CONNECT_TIMEOUT_SECONDS = float(os.environ.get('ORS_CONNECT_TIMEOUT_SECONDS', 5))
+ORS_READ_TIMEOUT_SECONDS = float(os.environ.get('ORS_READ_TIMEOUT_SECONDS', 30))
 ORS_GEOCODE_FALLBACK = env_bool('ORS_GEOCODE_FALLBACK', True)
 
 # Route optimizer defaults (overridable per request where noted in PLAN.md)
