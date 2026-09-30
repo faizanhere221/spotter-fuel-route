@@ -1,13 +1,7 @@
-from django.db.models import Count, Max
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Place, Station
-
-
-def stations_version():
-    agg = Station.objects.aggregate(n=Count("id"), last=Max("imported_at"))
-    return f"{agg['n']}:{agg['last'].isoformat() if agg['last'] else ''}"
+from .models import Place, Station, stations_version
 
 
 @api_view(["GET"])

@@ -11,8 +11,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 
 from routing.management.commands.load_places import CSV_HEADER, trim_geonames
-from routing.models import Place, Station
-from routing.views import stations_version
+from routing.models import Place, Station, stations_version
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

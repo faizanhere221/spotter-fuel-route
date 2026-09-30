@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Count, Max
 
 
 class Place(models.Model):
@@ -46,3 +47,9 @@ class Station(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.city}, {self.state})"
+
+
+def stations_version():
+    """Changes on every station import: row count + batch timestamp. One aggregate query."""
+    agg = Station.objects.aggregate(n=Count("id"), last=Max("imported_at"))
+    return f"{agg['n']}:{agg['last'].isoformat() if agg['last'] else ''}"

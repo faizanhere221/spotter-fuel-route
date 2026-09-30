@@ -52,7 +52,11 @@ class ORSClientTests(SimpleTestCase):
 
         args, kwargs = session.request.call_args
         self.assertEqual(args, ("POST", "https://ors.test/v2/directions/driving-hgv/geojson"))
-        self.assertEqual(kwargs["json"], {"coordinates": [[-74.0060, 40.7128], [-118.2437, 34.0522]]})
+        self.assertEqual(kwargs["json"], {
+            "coordinates": [[-74.0060, 40.7128], [-118.2437, 34.0522]],
+            "instructions": False,
+            "geometry_simplify": True,
+        })
         self.assertEqual(kwargs["headers"]["Authorization"], KEY)
         self.assertEqual(kwargs["timeout"], (5, 30))
 

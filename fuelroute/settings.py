@@ -79,6 +79,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'fuelroute.wsgi.application'
 
+TEST_RUNNER = 'fuelroute.test_runner.QuietTestRunner'
+
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
@@ -162,7 +164,7 @@ LOGGING = {
 
 # OpenRouteService
 ORS_API_KEY = os.environ.get('ORS_API_KEY', '')
-ORS_BASE_URL = os.environ.get('ORS_BASE_URL', 'https://api.openrouteservice.org')
+ORS_BASE_URL = os.environ.get('ORS_BASE_URL') or 'https://api.openrouteservice.org'
 ORS_PROFILE = os.environ.get('ORS_PROFILE', 'driving-hgv')
 ORS_CONNECT_TIMEOUT_SECONDS = float(os.environ.get('ORS_CONNECT_TIMEOUT_SECONDS', 5))
 ORS_READ_TIMEOUT_SECONDS = float(os.environ.get('ORS_READ_TIMEOUT_SECONDS', 30))

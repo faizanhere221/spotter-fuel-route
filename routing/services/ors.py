@@ -98,7 +98,12 @@ class ORSClient:
     def get_route(self, start, finish, profile=None):
         """Driving route between two (lat, lng) points. One HTTP call."""
         profile = profile or settings.ORS_PROFILE
-        body = {"coordinates": [[start[1], start[0]], [finish[1], finish[0]]]}  # ORS wants [lon, lat]
+        body = {
+            "coordinates": [[start[1], start[0]], [finish[1], finish[0]]],  # ORS wants [lon, lat]
+            # We only use geometry + summary: drop turn-by-turn steps and thin the polyline.
+            "instructions": False,
+            "geometry_simplify": True,
+        }
         data = self._request("POST", f"/v2/directions/{profile}/geojson", json=body)
         try:
             feature = data["features"][0]
