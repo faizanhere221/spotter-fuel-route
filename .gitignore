@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Scratch / throwaway work
+scratch/
+
+# Large downloaded data (fetched by management command)
+data/geonames/
+data/*.zip
+data/US.txt
+data/cities*.txt
+
+# Excel lock files
+~$*
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Original provided workbook; data/fuel-prices.csv is the committed source
+fuel-prices.xlsx
