@@ -1,5 +1,7 @@
 # Fuel Route Optimizer
 
+[![tests](https://github.com/faizanhere221/spotter-fuel-route/actions/workflows/tests.yml/badge.svg)](https://github.com/faizanhere221/spotter-fuel-route/actions/workflows/tests.yml)
+
 A Django REST API that takes a start and finish in the USA and returns the driving route, the
 cheapest fuel stops along it (50 gal tank, 10 mpg) and the total fuel cost. A new route costs
 **one** routing API call (OpenRouteService); repeating it costs **zero**.
