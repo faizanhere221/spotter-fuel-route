@@ -177,6 +177,12 @@ class RouteAPITests(APITestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["X-External-API-Calls"], "1")
 
+    def test_map_sends_referrer_policy_that_osm_tiles_accept(self):
+        # OSM's tile servers block requests without a Referer; Django's default policy omits it.
+        resp = self.client.get(reverse("route-map"), {"start": "New York, NY", "finish": "Los Angeles, CA"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Referrer-Policy"], "strict-origin-when-cross-origin")
+
     def test_geocode_fallback_counts_and_is_cached(self):
         first = self.post(start="Nowhereville, KS").json()
         self.assertEqual(first["external_api_calls"], 2)

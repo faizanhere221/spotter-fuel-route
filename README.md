@@ -52,7 +52,7 @@ $r.summary; $r.map_url
 Open the returned `map_url` in a browser for the map. Run the tests (ORS is mocked; no key needed):
 
 ```bash
-python manage.py test routing     # 125 tests
+python manage.py test routing     # 126 tests
 ```
 
 A [Postman collection](docs/SpotterFuelRoute.postman_collection.json) runs 10 demo requests with
@@ -274,7 +274,7 @@ routing/services/optimizer.py    greedy fuel plan (pure Python)
 routing/services/planner.py      plan_route(): pipeline, caches, timings
 routing/management/commands/     load_places, load_stations (offline data import)
 routing/templates/routing/       map.html (Leaflet), map_error.html
-routing/tests/                   125 tests; fixtures incl. a real NY -> LA route and ORS error bodies
+routing/tests/                   126 tests; fixtures incl. a real NY -> LA route and ORS error bodies
 data/fuel-prices.csv             provided price file (converted from xlsx, prices exact)
 data/us_places.csv               trimmed GeoNames US populated places
 docs/                            DESIGN.md, map.png, Postman collection

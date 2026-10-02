@@ -47,6 +47,9 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = [h.strip() for h in env('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
+# Django's default "same-origin" sends no Referer to tile.openstreetmap.org, which blocks such tile requests.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 
 # Application definition
 

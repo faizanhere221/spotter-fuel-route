@@ -42,3 +42,7 @@ Thumbs.db
 
 # Original provided workbook; data/fuel-prices.csv is the committed source
 fuel-prices.xlsx
+
+# Postman app local files
+.postman/
+postman/
